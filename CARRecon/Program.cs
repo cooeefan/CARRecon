@@ -81,7 +81,7 @@ namespace CARRecon
 
         static string GetDateCondition(CountObj obj)
         {
-
+            return "XXX";
         }
 
         static void RecordCount(object obj, int batchID)
