@@ -116,9 +116,9 @@ namespace CARRecon
             }
 
 #if DEBUG
-            Console.WriteLine(CARSQL);
-            Console.WriteLine(CDSSQL);
-            Console.WriteLine(StageSQL);
+            LogWriter.Write(CARSQL);
+            LogWriter.Write(CDSSQL);
+            LogWriter.Write(StageSQL);
 #endif
 
             SqlConnection CDSConn = null;
@@ -157,7 +157,7 @@ namespace CARRecon
                 }
                 catch(Exception ex)
                 {
-                    Console.WriteLine(ex.ToString());
+                    LogWriter.Write(ex.ToString());
                     CARCount = -1;
                     if(!failedList.Contains(countObj))
                     {
@@ -181,7 +181,7 @@ namespace CARRecon
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine(ex.ToString());
+                    LogWriter.Write(ex.ToString());
                     CDSCount = -1;
                     if (!failedList.Contains(countObj))
                     {
@@ -202,7 +202,7 @@ namespace CARRecon
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine(ex.ToString());
+                    LogWriter.Write(ex.ToString());
                     CDSstageCount = -1;
                     if (!failedList.Contains(countObj))
                     {
@@ -210,9 +210,9 @@ namespace CARRecon
                     }
                 }
 
-                Console.WriteLine(CDSstageCount.ToString());
-                Console.WriteLine(CDSCount.ToString());
-                Console.WriteLine(CARCount.ToString());
+                LogWriter.Write(CDSstageCount.ToString());
+                LogWriter.Write(CDSCount.ToString());
+                LogWriter.Write(CARCount.ToString());
 
                 WriteResult(countObj, batchID, "CAR", CARCount);
                 WriteResult(countObj, batchID, "CDS", CDSCount);
@@ -221,7 +221,7 @@ namespace CARRecon
             }
             catch(Exception ex)
             {
-                Console.WriteLine(ex.ToString());
+                LogWriter.Write(ex.ToString());
                 failedList.Add(countObj);
             }
             finally
@@ -239,6 +239,8 @@ namespace CARRecon
 
         static void Main(string[] args)
         {
+            LogWriter.Write("CAR Recon Process Starts...");
+
             using (SqlConnection PECon = new SqlConnection(PEConnectionString))
             {
                 PECon.Open();
@@ -266,12 +268,13 @@ namespace CARRecon
                             }
                         }
                     }
+                    LogWriter.Write("Current BatchID = " + newBatchID.ToString());
 
-
+                    
                     while (objectListReader.Read())
                     {
 #if DEBUG
-                        Console.WriteLine(objectListReader["Path"].ToString());
+                        LogWriter.Write("Counting "+objectListReader["Path"].ToString());
 #endif
                         //Start counting...
                         string myPath = objectListReader["Path"].ToString();
@@ -306,6 +309,7 @@ namespace CARRecon
                     }
 
                     //Start retrying objects has issue
+                    LogWriter.Write("Start retrying counting...");
                     int currentRrtryRemain = retryTime;
                     while(failedList.Count>0 && currentRrtryRemain>0)
                     {
@@ -315,10 +319,9 @@ namespace CARRecon
                         }
                         currentRrtryRemain--;
                     }
-                    
-
                 }
             }
+            LogWriter.Write("CAR Recon finished");
         }
     }
 }

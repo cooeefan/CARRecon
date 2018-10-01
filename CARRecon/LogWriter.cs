@@ -3,7 +3,7 @@ using System.Text;
 using System.IO;
 using System.Configuration;
 
-namespace AccessSPList
+namespace CARRecon
 {
     class LogWriter
     {
