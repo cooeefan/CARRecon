@@ -23,8 +23,8 @@ namespace CARRecon
         const string PEConnectionString = "Integrated Security=SSPI;Persist Security Info=False;Initial Catalog=CAR_Sandbox;Data Source=PRDDSCOMM001;Connection Timeout=600";
         const string ResultDBConnectionString = "Integrated Security=SSPI;Persist Security Info=False;Initial Catalog=FanJiang;Data Source=DEVDSACSX001;Connection Timeout=600";
 
-        //const int retryTime = 2;
-        //static List<CountObj> failedList = new List<CountObj>();
+        const int retryTime = 2;
+        static List<CountObj> failedList = new List<CountObj>();
 
         static string FindTableName(string objectName,string containername)
         {
@@ -71,8 +71,8 @@ namespace CARRecon
                     sqlComm.Connection = sqlConn;
                     string sqlResultUpdate = String.Format(@"IF Exists (select 1 from CARReconResultDetail where ReconBatchID = {0} and ObjectName = '{1}' and DBName = '{2}' )
                                 delete CARReconResultDetail where  ReconBatchID = {0} and ObjectName = '{1}' and DBName = '{2}'
-                        insert into CARReconResultDetail(ReconBatchID, ObjectName, DBName, Result) values({0},'{1}','{2}'," + result.ToString()+")",
-                        batchID.ToString(), obj.ObjectName, DBName);
+                        insert into CARReconResultDetail(ReconBatchID, ObjectName, SystemID,DBName, Result) values({0},'{1}','{2}','{3}'," + result.ToString()+")",
+                        batchID.ToString(), obj.ObjectName,obj.SystemID, DBName);
                     sqlComm.CommandText = sqlResultUpdate;
                     sqlComm.ExecuteNonQuery();
                 }
@@ -118,49 +118,97 @@ namespace CARRecon
 #if DEBUG
             Console.WriteLine(CARSQL);
             Console.WriteLine(CDSSQL);
-            Console.WriteLine(StageSQL);                     
+            Console.WriteLine(StageSQL);
 #endif
+
+            SqlConnection CDSConn = null;
+            SqlConnection CARConn = null;
+            SqlConnection resultConn = null;
+
+            SqlCommand CDSComm = null;
+            SqlCommand CARComm = null;
+            SqlCommand ResultComm = null;
+
             try
             {
-                SqlConnection CDSConn = new SqlConnection(CDSConnectionString);
-                SqlConnection CARConn = new SqlConnection(CARConnectionString);
-                SqlConnection resultConn = new SqlConnection(ResultDBConnectionString);
+                CDSConn = new SqlConnection(CDSConnectionString);
+                CARConn = new SqlConnection(CARConnectionString);
+                resultConn = new SqlConnection(ResultDBConnectionString);
                 CDSConn.Open();
                 CARConn.Open();
                 resultConn.Open();
-                SqlCommand CDSComm = new SqlCommand();
+                CDSComm = new SqlCommand();
                 CDSComm.Connection = CDSConn;
-                SqlCommand CARComm = new SqlCommand();
+                CARComm = new SqlCommand();
                 CARComm.Connection = CARConn;
-                SqlCommand ResultComm = new SqlCommand();
+                ResultComm = new SqlCommand();
                 ResultComm.Connection = resultConn;
 
                 //CAR Count
-                CARComm.CommandText = CARSQL;
-                SqlDataReader CARRd = CARComm.ExecuteReader();
-                if (CARRd.Read())
+                try
                 {
-                    CARCount = CARRd.GetInt32(0);
+                    CARComm.CommandText = CARSQL;
+                    SqlDataReader CARRd = CARComm.ExecuteReader();
+                    if (CARRd.Read())
+                    {
+                        CARCount = CARRd.GetInt32(0);
+                    }
+                    CARRd.Close();
                 }
-                CARRd.Close();
-                
+                catch(Exception ex)
+                {
+                    Console.WriteLine(ex.ToString());
+                    CARCount = -1;
+                    if(!failedList.Contains(countObj))
+                    {
+                        failedList.Add(countObj);
+                    }
+                }
+
+
+
                 //CDS count
-                CDSComm.CommandText = CDSSQL;
-                SqlDataReader CDSRd = CDSComm.ExecuteReader();
-                if (CDSRd.Read())
+                SqlDataReader CDSRd = null;
+                try
                 {
-                    CDSCount = CDSRd.GetInt32(0);
+                    CDSComm.CommandText = CDSSQL;
+                    CDSRd = CDSComm.ExecuteReader();
+                    if (CDSRd.Read())
+                    {
+                        CDSCount = CDSRd.GetInt32(0);
+                    }
+                    CDSRd.Close();
                 }
-                CDSRd.Close();
+                catch (Exception ex)
+                {
+                    Console.WriteLine(ex.ToString());
+                    CDSCount = -1;
+                    if (!failedList.Contains(countObj))
+                    {
+                        failedList.Add(countObj);
+                    }
+                }
 
                 //CDS Stage count
-                CDSComm.CommandText = StageSQL;
-                CDSRd = CDSComm.ExecuteReader();
-                if(CDSRd.Read())
+                try
                 {
-                    CDSstageCount = CDSRd.GetInt32(0);
+                    CDSComm.CommandText = StageSQL;
+                    CDSRd = CDSComm.ExecuteReader();
+                    if (CDSRd.Read())
+                    {
+                        CDSstageCount = CDSRd.GetInt32(0);
+                    }
+                    CDSRd.Close();
                 }
-                CDSRd.Close();
+                catch (Exception ex)
+                {
+                    Console.WriteLine(ex.ToString());
+                    CDSstageCount = -1;
+                    if (!failedList.Contains(countObj))
+                    {
+                        failedList.Add(countObj);
+                    }
+                }
 
                 Console.WriteLine(CDSstageCount.ToString());
                 Console.WriteLine(CDSCount.ToString());
@@ -174,7 +222,17 @@ namespace CARRecon
             catch(Exception ex)
             {
                 Console.WriteLine(ex.ToString());
-                failedList.Add(countObj); 
+                failedList.Add(countObj);
+            }
+            finally
+            {
+                CDSComm.Dispose();
+                CARComm.Dispose();
+                ResultComm.Dispose();
+
+                CDSConn.Close();
+                CARConn.Close();
+                resultConn.Close();
             }
 
         }
@@ -243,7 +301,22 @@ namespace CARRecon
                         myCountObj.Path = myPath;
                         myCountObj.SystemID = mySystemID;
                         RecordCount(myCountObj,newBatchID);
+
+                        //
                     }
+
+                    //Start retrying objects has issue
+                    int currentRrtryRemain = retryTime;
+                    while(failedList.Count>0 && currentRrtryRemain>0)
+                    {
+                        foreach(CountObj obj in failedList)
+                        {
+                            RecordCount(obj, newBatchID);
+                        }
+                        currentRrtryRemain--;
+                    }
+                    
+
                 }
             }
         }
