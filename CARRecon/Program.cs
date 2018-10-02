@@ -309,16 +309,16 @@ namespace CARRecon
                     }
 
                     //Start retrying objects has issue
-                    LogWriter.Write("Start retrying counting...");
-                    int currentRrtryRemain = retryTime;
-                    while(failedList.Count>0 && currentRrtryRemain>0)
-                    {
-                        foreach(CountObj obj in failedList)
-                        {
-                            RecordCount(obj, newBatchID);
-                        }
-                        currentRrtryRemain--;
-                    }
+                    //LogWriter.Write("Start retrying counting...");
+                    //int currentRrtryRemain = retryTime;
+                    //while(failedList.Count>0 && currentRrtryRemain>0)
+                    //{
+                    //    foreach(CountObj obj in failedList)
+                    //    {
+                    //        RecordCount(obj, newBatchID);
+                    //    }
+                    //    currentRrtryRemain--;
+                    //}
                 }
             }
             LogWriter.Write("CAR Recon finished");

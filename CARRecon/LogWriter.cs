@@ -11,6 +11,11 @@ namespace CARRecon
         {
             string logFilePath;
 
+            if (!Directory.Exists(Directory.GetCurrentDirectory().ToString() + "\\LOG"))
+            {
+                Directory.CreateDirectory(Directory.GetCurrentDirectory().ToString() + "\\LOG");
+            }
+
             if (ConfigurationManager.AppSettings["LoggerWriter"] == "ON")
             {
                 logFilePath = Directory.GetCurrentDirectory().ToString()+"\\LOG\\"+DateTime.Now.Date.ToString("yyyyMMdd")+".log";
